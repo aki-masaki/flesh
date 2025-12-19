@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -O3 -Iinclude
+CFLAGS = -Wall -Wextra -g -Iinclude
 
 SRC = $(wildcard src/*.c src/**/*.c)
 OBJ = $(SRC:.c=.o)
@@ -9,7 +9,7 @@ TARGET = flesh
 all: $(TARGET)
 
 $(TARGET): $(OBJ)
-	$(CC) $(OBJ) -o $(TARGET)
+	$(CC) $(OBJ) -o $(TARGET) -lcurses
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c $< -o $@

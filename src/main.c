@@ -1,41 +1,34 @@
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+#include <ctype.h>
+#include <ncurses.h>
 
-#include "parser.h"
-#include "shell.h"
+#include "defs.h"
+#include "structs.h"
+#include "ui.h"
+#include "utils.h"
 
 int main() {
-  struct shell sh = {};
-  sh_init(&sh);
+  fh_inst instance = {};
 
-  while (1) {
-    char *line = NULL;
-    size_t size = 0;
+  fh_cspace cspace = create_cspace(&instance);
 
-    char **args = NULL;
-    int argc = 0;
+  fh_ui ui;
+  init_ui(&ui);
 
-    printf("[%s] -> ", sh.cr_dir);
-    getline(&line, &size, stdin);
+  int c;
+  int i = 0;
+  while ((c = getch()) != 'q') {
+    if (isprint(c) && i < MAX_COMMAND_LEN)
+      cspace.command[i++] = c;
+    else if (c == KEY_BACKSPACE && i > 0)
+      cspace.command[--i] = '\0';
 
-    args = parse_args(line, &argc, &sh);
-
-    if (strcmp(args[0], "cd") == 0) {
-      if (args[1] == NULL) {
-        printf("cd where?\n");
-      } else {
-        sh_chdir(&sh, args[1]);
-      }
-    } else if (strcmp(args[0], "exit") == 0) {
-      exit(0);
-    } else {
-      sh_execute(&sh, args);
-    }
-
-    free(line);
-    free(args);
+    move(0, 0);
+    clrtoeol();
+    mvprintw(0, 0, "> %s", cspace.command);
+    refresh();
   }
+
+  endwin();
 
   return 0;
 }
