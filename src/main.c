@@ -14,18 +14,23 @@ int main() {
   fh_ui ui;
   init_ui(&ui);
 
+  draw_cspace(&ui, &cspace, 0);
+  refresh();
+
   int c;
   int i = 0;
   while ((c = getch()) != 'q') {
-    if (isprint(c) && i < MAX_COMMAND_LEN)
+    if (isprint(c) && i < MAX_COMMAND_LEN) {
       cspace.command[i++] = c;
-    else if (c == KEY_BACKSPACE && i > 0)
+    } else if (c == KEY_BACKSPACE && i > 0) {
       cspace.command[--i] = '\0';
+    } else if (c == 10) { // Enter key
+      // https://stackoverflow.com/questions/11067800/ncurses-key-enter-is-fail
 
-    move(0, 0);
-    clrtoeol();
-    mvprintw(0, 0, "> %s", cspace.command);
-    refresh();
+      exec_cspace(&cspace);
+    }
+
+    draw_cspace(&ui, &cspace, 0);
   }
 
   endwin();
