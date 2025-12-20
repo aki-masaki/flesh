@@ -19,7 +19,7 @@ int main() {
 
   int c;
   int i = 0;
-  while ((c = getch()) != 'q') {
+  while (c = getch()) {
     if (isprint(c) && i < MAX_COMMAND_LEN) {
       cspace.command[i++] = c;
     } else if (c == KEY_BACKSPACE && i > 0) {
@@ -27,7 +27,9 @@ int main() {
     } else if (c == 10) { // Enter key
       // https://stackoverflow.com/questions/11067800/ncurses-key-enter-is-fail
 
-      exec_cspace(&cspace);
+      int argc = 0;
+      char **args = get_command_args(cspace.command, &argc);
+      exec_cspace(&cspace, args);
     }
 
     draw_cspace(&ui, &cspace, 0);
