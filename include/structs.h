@@ -7,7 +7,10 @@ struct _fh_ui {
 
   WINDOW *cspace_command_wins[10];
   WINDOW *cspace_output_wins[10];
+  int cspace_delim_lines[10][2]; // they will be in the stdscr window
   int cspace_wins_cnt;
+
+  int dirty; // needs rerender
 };
 
 typedef struct _fh_ui fh_ui;

@@ -49,6 +49,11 @@ void exec_cspace(fh_cspace *cspace, char **args) {
   pid_t pid = forkpty(&master, slave_name, NULL, NULL);
 
   if (pid == 0) {
+    char columns[8];
+    snprintf(columns, 8, "%d", COLS);
+
+    setenv("COLUMNS", columns, 1);
+
     if (execvp(args[0], args) == -1) {
       printf(":(can't execute '%s'", args[0]);
 
