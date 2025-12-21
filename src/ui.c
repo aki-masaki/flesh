@@ -14,6 +14,7 @@ void init_colors() {
   init_pair(6, COLOR_MAGENTA, -1);
   init_pair(7, COLOR_CYAN, -1);
   init_pair(8, COLOR_WHITE, -1);
+  init_pair(9, COLOR_WHITE, COLOR_BLACK);
 }
 
 void init_ui(fh_ui *ui) {
@@ -30,51 +31,44 @@ void init_ui(fh_ui *ui) {
   use_default_colors();
   init_colors();
 
-  ui->cspace_command_wins[0] = newwin(1, COLS, 0, 0);
-  ui->cspace_output_wins[0] = newwin(2, COLS, 1, 0);
-  ui->cspace_delim_lines[0][0] = -1;
-  ui->cspace_delim_lines[0][1] = -1;
+  ESCDELAY = 10;
 
   ui->dirty = 1;
+
+  ui->status_line = newwin(1, COLS, LINES - 1, 0);
 }
 
-void draw_cspace(fh_ui *ui, fh_cspace *cspace, int index) {
+void draw_cspace(fh_inst *inst, int index) {
+  fh_ui *ui = &inst->ui;
+  fh_cspace *cspace = &inst->cspaces[index];
+
   if (!ui->dirty)
     return;
-
-  ui->dirty = 0;
 
   WINDOW *cwin = ui->cspace_command_wins[index];
   WINDOW *owin = ui->cspace_output_wins[index];
 
   wmove(cwin, 0, 0);
   wclrtoeol(cwin);
-  mvwprintw(cwin, 0, 0, "> %s", cspace->command);
+
+  if (cspace->focus == 2)
+    mvwaddch(cwin, 0, 0, '>');
+  else if (cspace->focus == 1)
+    mvwaddch(cwin, 0, 0, '*');
+  else
+    mvwaddch(cwin, 0, 0, '#');
+
+  if (cspace->command != NULL)
+    mvwprintw(cwin, 0, 2, "%s", cspace->command);
+
   wrefresh(cwin);
+
+  wbkgd(owin, COLOR_PAIR(8));
 
   if (cspace->output == NULL) {
     werase(owin);
     mvwaddstr(owin, 0, 0, "(null)");
     wrefresh(owin);
-
-    if (ui->cspace_delim_lines[0][0] != -1 ||
-        ui->cspace_delim_lines[0][1] != -1) {
-      move(ui->cspace_delim_lines[0][0], 0);
-      clrtoeol();
-      move(ui->cspace_delim_lines[0][1], 0);
-      clrtoeol();
-      refresh();
-
-      ui->cspace_delim_lines[0][0] = -1;
-      ui->cspace_delim_lines[0][1] = -1;
-    }
-
-    ui->cspace_delim_lines[0][0] = 1;
-    ui->cspace_delim_lines[0][1] = 3;
-
-    mvhline(ui->cspace_delim_lines[0][0], 0, '-', COLS);
-    mvhline(ui->cspace_delim_lines[0][1], 0, '-', COLS);
-    refresh();
 
     return;
   }
@@ -94,35 +88,21 @@ void draw_cspace(fh_ui *ui, fh_cspace *cspace, int index) {
     if (cspace->output[i] == '\n')
       newline_cnt++;
 
-  if (ui->cspace_delim_lines[0][0] != -1 ||
-      ui->cspace_delim_lines[0][1] != -1) {
-    move(ui->cspace_delim_lines[0][0], 0);
-    clrtoeol();
-    move(ui->cspace_delim_lines[0][1], 0);
-    clrtoeol();
-    refresh();
-
-    ui->cspace_delim_lines[0][0] = -1;
-    ui->cspace_delim_lines[0][1] = -1;
-  }
-
   werase(owin);
   wrefresh(owin);
 
-  delwin(owin);
-  ui->cspace_output_wins[index] = newwin(newline_cnt + 1, COLS, 2, 0);
-  owin = ui->cspace_output_wins[index];
+  if (ui->cspace_wins_tb[index][1] != newline_cnt + 1) {
+    ui->cspace_wins_tb[index][1] = newline_cnt + 1;
+
+    delwin(owin);
+    ui->cspace_output_wins[index] =
+        newwin(newline_cnt + 1, COLS, ui->cspace_wins_tb[index][0] + 1, 0);
+    owin = ui->cspace_output_wins[index];
+  }
 
   FILE *fl = fopen("log", "w");
   fputs(cspace->output, fl);
   fclose(fl);
-
-  ui->cspace_delim_lines[0][0] = 1;
-  ui->cspace_delim_lines[0][1] = newline_cnt + 3;
-
-  mvhline(ui->cspace_delim_lines[0][0], 0, '-', COLS);
-  mvhline(ui->cspace_delim_lines[0][1], 0, '-', COLS);
-  refresh();
 
   int crx = 0;
   int cry = 0;
@@ -195,4 +175,36 @@ void draw_cspace(fh_ui *ui, fh_cspace *cspace, int index) {
   }
 
   wrefresh(owin);
+}
+
+void create_cspace_ui(fh_inst *inst) {
+  fh_ui *ui = &inst->ui;
+  int i = inst->cspaces_cnt - 1;
+
+  ui->cspace_wins_tb[i][0] = 0;
+  ui->cspace_wins_tb[i][1] = 3;
+
+  if (i > 0) {
+    ui->cspace_wins_tb[i][0] = ui->cspace_wins_tb[i - 1][1] + 1;
+    ui->cspace_wins_tb[i][1] =
+        ui->cspace_wins_tb[i][0] + ui->cspace_wins_tb[i - 1][1] + 1;
+  }
+
+  ui->cspace_command_wins[i] = newwin(1, COLS, ui->cspace_wins_tb[i][0], 0);
+  ui->cspace_output_wins[i] = newwin(2, COLS, ui->cspace_wins_tb[i][0] + 1, 0);
+}
+
+void draw_status_line(fh_inst *inst) {
+  fh_ui *ui = &inst->ui;
+
+  if (!ui->dirty)
+    return;
+
+  wmove(ui->status_line, 0, 0);
+  wclrtoeol(ui->status_line);
+  wattron(ui->status_line, COLOR_PAIR(9));
+  mvwprintw(ui->status_line, 0, 0, "focus: %d; windows: %d; input: %p",
+            inst->cspace_focus_index, inst->cspaces_cnt, inst->focused_input);
+  wattroff(ui->status_line, COLOR_PAIR(9));
+  wrefresh(ui->status_line);
 }
